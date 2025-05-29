@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Bot Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>HAOS Bot Dashboard</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -87,77 +86,106 @@
             border-bottom: 1px solid #34495e;
             padding-bottom: 5px;
         }
+
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Trading Bot Dashboard</h1>
+<div class="container">
+    <h1>Trading Bot Dashboard</h1>
 
-        <div class="status">
-            <div class="status-item">
-                <div>Current Price</div>
-                <div class="status-value" id="price">-</div>
-            </div>
-            <div class="status-item">
-                <div>Trend</div>
-                <div class="status-value" id="trend">-</div>
-            </div>
-            <div class="status-item">
-                <div>Support Walls</div>
-                <div class="status-value" id="support">-</div>
-            </div>
-            <div class="status-item">
-                <div>Resistance Walls</div>
-                <div class="status-value" id="resistance">-</div>
-            </div>
-            <div class="status-item">
-                <div>Rokada Status</div>
-                <div class="status-value" id="rokada">-</div>
-            </div>
+    <div class="status">
+        <div class="status-item">
+            <div>Current Price</div>
+            <div class="status-value" id="price">-</div>
         </div>
-
-        <div class="controls">
-            <button id="startBot">Start Bot</button>
-            <button id="stopBot" class="stop">Stop Bot</button>
-            <button id="rokadaOn">Rokada ON</button>
-            <button id="rokadaOff">Rokada OFF</button>
+        <div class="status-item">
+            <div>Trend</div>
+            <div class="status-value" id="trend">-</div>
         </div>
-
-        <div class="data-section">
-            <div class="card">
-                <h2>Signals</h2>
-                <div id="signals"></div>
-            </div>
-            <div class="card">
-                <h2>Active Trades</h2>
-                <div id="trades"></div>
-            </div>
+        <div class="status-item">
+            <div>Resistance Walls</div>
+            <div class="status-value" id="resistance">-</div>
         </div>
-        <div class="card">
-            <h2>Price Movement</h2>
-            <canvas id="priceChart" height="150"></canvas>
+        <div class="status-item">
+            <div>Support Walls</div>
+            <div class="status-value" id="support">-</div>
         </div>
-        <div class="card">
-            <h2>Logs</h2>
-            <div class="log" id="logs"></div>
+        <div class="status-item">
+            <div>Rokada Status</div>
+            <div class="status-value" id="rokada">-</div>
+        </div>
+        <div class="status-item">
+            <div>WS latency:</div>
+            <div class="status-value" id="ws_latency">-</div>
+        </div>
+        <div class="status-item">
+            <div>REST latency</div>
+            <div class="status-value" id="rest_latency">-</div>
         </div>
     </div>
 
-    <script>
-        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+    <div class="controls">
+        <button id="startBot">Start Bot</button>
+        <button id="stopBot" class="stop">Stop Bot</button>
+        <button id="rokadaOn">Rokada ON</button>
+        <button id="rokadaOff">Rokada OFF</button>
+        <div class="status-item">
+            <div>ETH Balance</div>
+            <div class="status-value" id="ethBalance">-</div>
+        </div>
+        <div class="status-item">
+            <div>BTC Balance</div>
+            <div class="status-value" id="btcBalance">-</div>
+        </div>
+        <div class="status-item">
+            <div>USDT Balance</div>
+            <div class="status-value" id="usdtBalance">-</div>
+        </div>
+    </div>
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+    <div class="data-section">
+        <div class="card">
+            <h2>Signals</h2>
+            <div id="signals"></div>
+        </div>
+        <div class="card">
+            <h2>Active Trades</h2>
+            <div id="trades"></div>
+        </div>
+    </div>
+    <div class="card">
+        <h2>Price Movement</h2>
+        <canvas id="priceChart" height="150"></canvas>
+    </div>
+    <div class="card">
+        <h2>Logs</h2>
+        <div class="log" id="logs"></div>
+    </div>
+</div>
 
-            if (data.type === 'data') {
-                // Update status
+<script>
+    const ws = new WebSocket(`ws://${window.location.host}/ws`);
+    let lastUpdate = 0;
+    const updateInterval = 0; // Minimalno vreme između ažuriranja UI-ja u milisekundama (npr. 100ms = 10 puta u sekundi)
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'data') {
+            const currentTime = Date.now();
+            if (currentTime - lastUpdate >= updateInterval) {
+                // Ažuriraj UI samo ako je prošlo dovoljno vremena od poslednjeg ažuriranja
                 document.getElementById('price').textContent = data.price;
                 document.getElementById('trend').textContent = data.trend;
                 document.getElementById('support').textContent = data.support;
                 document.getElementById('resistance').textContent = data.resistance;
                 document.getElementById('rokada').textContent = data.rokada_status;
+                document.getElementById('ethBalance').textContent = data.balance ? data.balance.toFixed(4) : '-';
+                document.getElementById('btcBalance').textContent = data.extra_balances && data.extra_balances.BTC ? data.extra_balances.BTC.toFixed(4) : '-';
+                document.getElementById('usdtBalance').textContent = data.extra_balances && data.extra_balances.USDT ? data.extra_balances.USDT.toFixed(2) : '-';
 
-                // Update signals
+
                 const signalsDiv = document.getElementById('signals');
                 signalsDiv.innerHTML = data.signals.map(signal => `
                     <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
@@ -167,7 +195,6 @@
                     </div>
                 `).join('');
 
-                // Update trades
                 const tradesDiv = document.getElementById('trades');
                 tradesDiv.innerHTML = data.active_trades.length > 0
                     ? data.active_trades.map(trade => `
@@ -177,81 +204,74 @@
                         </div>
                     `).join('')
                     : 'No active trades';
-            }
 
-            if (data.type === 'log') {
-                const logsDiv = document.getElementById('logs');
-                const logEntry = document.createElement('div');
-                logEntry.className = 'log-entry';
-                logEntry.textContent = data.message;
-                logsDiv.appendChild(logEntry);
-                logsDiv.scrollTop = logsDiv.scrollHeight;
-            }
-        };
+                document.getElementById('ws_latency').textContent = data.ws_latency;
+                document.getElementById('rest_latency').textContent = data.rest_latency === 'N/A (Exchange not initialized)' ? 'N/A' : data.rest_latency;
 
-        function startTrade(index) {
-            fetch(`/api/start_trade/${index}`, { method: 'GET' })
-                .then(response => response.json())
-                .then(data => console.log('Trade started:', data))
-                .catch(error => console.error('Error:', error));
+                lastUpdate = currentTime;
+            }
         }
 
-        document.getElementById('startBot').addEventListener('click', () => {
-            fetch('/api/start_bot', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ leverage: 5, amount: 0.05 })
-            }).then(response => response.json())
-              .then(data => console.log('Bot started:', data));
-        });
+        if (data.type === 'log') {
+            const logsDiv = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = data.message;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+    };
 
-        document.getElementById('stopBot').addEventListener('click', () => {
-            fetch('/api/stop_bot', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => console.log('Bot stopped:', data));
-        });
-
-        document.getElementById('rokadaOn').addEventListener('click', () => {
-            fetch('/api/set_rokada', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'on' })
-            }).then(response => response.json())
-              .then(data => console.log('Rokada ON:', data));
-        });
-
-        document.getElementById('rokadaOff').addEventListener('click', () => {
-            fetch('/api/set_rokada', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'off' })
-            }).then(response => response.json())
-              .then(data => console.log('Rokada OFF:', data));
-        });
-
-        // Initial data load
-        fetch('/api/get_data')
+    function startTrade(index) {
+        fetch(`/api/start_trade/${index}`, { method: 'GET' })
             .then(response => response.json())
-            .then(data => {
-                console.log('Initial data:', data);
-                if (data.error) {
-                    document.getElementById('logs').innerHTML += `<div class="log-entry">Error: ${data.error}</div>`;
-                }
-            });
-                // Debug funkcija
-        async function testConnection() {
-            try {
-                const res = await fetch('/api/get_data');
-                console.log('API response:', await res.json());
+            .then(data => console.log('Trade started:', data))
+            .catch(error => console.error('Error:', error));
+    }
 
-                const ws = new WebSocket(`ws://${window.location.host}/ws`);
-                ws.onopen = () => console.log('WebSocket connected!');
-                ws.onerror = (e) => console.error('WebSocket error:', e);
-            } catch (e) {
-                console.error('Connection test failed:', e);
+    document.getElementById('startBot').addEventListener('click', () => {
+        fetch('/api/start_bot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ leverage: 2, amount: 0.05 })
+        }).then(response => response.json())
+          .then(data => console.log('Bot started:', data));
+    });
+
+    document.getElementById('stopBot').addEventListener('click', () => {
+        fetch('/api/stop_bot', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => console.log('Bot stopped:', data));
+    });
+
+    document.getElementById('rokadaOn').addEventListener('click', () => {
+        fetch('/api/set_rokada', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'on' })
+        }).then(response => response.json())
+          .then(data => console.log('Rokada ON:', data));
+    });
+
+    document.getElementById('rokadaOff').addEventListener('click', () => {
+        fetch('/api/set_rokada', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'off' })
+        }).then(response => response.json())
+          .then(data => console.log('Rokada OFF:', data));
+    });
+
+    // Initial data load
+    fetch('/api/get_data')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Initial data:', data);
+            if (data.error) {
+                document.getElementById('logs').innerHTML += `<div class="log-entry">Error: ${data.error}</div>`;
             }
-        }
-        testConnection();
+        });
+
     </script>
 </body>
 </html>

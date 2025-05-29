@@ -27,8 +27,10 @@ def filter_walls(orderbook, current_price, threshold=0.002):
         if price_spread <= WALL_RANGE_SPREAD and cluster_volume >= MIN_WALL_VOLUME:
             avg_price = np.mean(cluster_prices)
             avg_price = round(float(avg_price), PRICE_PRECISION)
-            support_walls.append([avg_price, cluster_volume])
+            support_walls.append([round(float(avg_price), PRICE_PRECISION), float(cluster_volume)])
             logger.info(f"Support wall: price={avg_price:.5f}, volume={cluster_volume:.2f}")
+    #            support_walls.append([avg_price, cluster_volume])
+    #            logger.info(f"Support wall: price={avg_price:.5f}, volume={cluster_volume:.2f}")
 
     resistance_walls = []
     for i in range(len(asks) - 3):  # Smanjeno na 3
@@ -40,10 +42,13 @@ def filter_walls(orderbook, current_price, threshold=0.002):
         if price_spread <= WALL_RANGE_SPREAD and cluster_volume >= MIN_WALL_VOLUME:
             avg_price = np.mean(cluster_prices)
             avg_price = round(float(avg_price), PRICE_PRECISION)
-            resistance_walls.append([avg_price, cluster_volume])
+            resistance_walls.append([round(float(avg_price), PRICE_PRECISION), float(cluster_volume)])
             logger.info(f"Resistance wall: price={avg_price:.5f}, volume={cluster_volume:.2f}")
+    #            resistance_walls.append([avg_price, cluster_volume])
+    #            logger.info(f"Resistance wall: price={avg_price:.5f}, volume={cluster_volume:.2f}")
 
     walls = {'support': support_walls, 'resistance': resistance_walls}
+
     logger.info(f"Pronađeni zidovi: support={len(support_walls)}, resistance={len(resistance_walls)}")
     return walls
 

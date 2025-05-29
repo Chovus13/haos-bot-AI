@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haos Bot</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #2c2c2c;
+            padding: 10px 20px;
+            border-bottom: 1px solid #444;
+        }
+        #bot-name {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        #log-container {
+            flex-grow: 1;
+            margin: 0 20px;
+            max-height: 40px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            color: #a0a0a0;
+        }
+        #latency {
+            font-size: 1em;
+            color: #00ff00;
+            display: flex;
+            gap: 10px;
+        }
+        #controls {
+            margin: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4a4a4a;
+            color: #e0e0e0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #5a5a5a;
+        }
+        button:disabled {
+            background-color: #333;
+            cursor: not-allowed;
+        }
+        input {
+            padding: 8px;
+            background-color: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            border-radius: 5px;
+        }
+        #data-container {
+            margin: 20px;
+            padding: 20px;
+            background-color: #2c2c2c;
+            border-radius: 5px;
+        }
+        .error {
+            color: #ff5555;
+        }
+        .chart-container { background-color: dimgray; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); height: 300px;
+        }
+        .signals { background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; }
+        footer { background-color: #333; color: white; padding: 10px; text-align: center; font-size: 14px; }
+        @media (max-width: 768px) { .container { padding: 10px; } .status { grid-template-columns: 1fr; } .chart-container { height: 200px; } }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <div id="bot-name">Haos Bot</div>
+        <div id="log-container"></div>
+        <div id="latency">
+            <span>WS Latency: <span id="ws-latency">N/A</span> ms</span>
+            <span>REST Latency: <span id="rest-latency">N/A</span> ms</span>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="start-btn" onclick="start_bot()">Start Bot</button>
+        <button id="stop-btn" onclick="stop_bot()">Stop Bot</button>
+        <button id="rokada-btn" onclick="setRokada()">Toggle Rokada</button>
+        <label for="leverage">Leverage:</label>
+        <input type="number" id="leverage" value="1" min="1" max="100">
+        <label for="amount">Amount (ETH):</label>
+        <input type="number" id="amount" value="0.06" min="0.01" step="0.01">
+        <span id="error-message" class="error"></span>
+    </div>
+
+    <div id="data-container">
+        <h2>Bot Data</h2>
+        <p>Price: <span id="price">N/A</span></p>
+        <p>Support: <span id="support">N/A</span></p>
+        <p>Resistance: <span id="resistance">N/A</span></p>
+        <p>Trend: <span id="trend">N/A</span></p>
+        <p>Balance: <span id="balance">N/A</span> <span id="balance-currency"></span></p>
+        <p>Extra Balances: BTC: <span id="extra-btc">N/A</span>, USDT: <span id="extra-usdt">0.0</span></p>
+        <p>Rokada Status: <span id="rokada-status">N/A</span></p>
+        <p>Active Trades: <span id="active-trades">N/A</span></p>
+        <p>Signals: <span id="signals">N/A</span></p>
+    </div>
+    <footer>
+        <p>Bot Status: <span id="botStatus">Disconnected</span> | Latest Signal: <span id="latestSignal">N/A</span></p>
+    </footer>
+    <script>
+    <footer>
+        <p>Bot Status: <span id="botStatus">Disconnected</span> | Latest Signal: <span id="latestSignal">N/A</span></p>
+    </footer>
+
+    async function setRokada() {
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.innerText = '';
+
+            try {
+                const currentStatus = document.getElementById('rokada-status').innerText;
+                const newStatus = currentStatus === 'off' ? 'on' : 'off';
+                const url = '/set_rokada';
+                console.log('Sending POST to:', url, { status: newStatus });
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const result = await response.json();
+                console.log('Toggle Rokada response:', result);
+                if (result.status === 'error') {
+                    errorMessage.innerText = result.error;
+                    logs.push(`Error: ${result.error}`);
+                } else {
+                    logs.push(`Rokada toggled to ${newStatus}`);
+                    document.getElementById('rokada-status').innerText = newStatus;
+                }
+            } catch (error) {
+                console.error('Error toggling rokada:', error);
+                errorMessage.innerText = 'Failed to toggle rokada: ' + error.message;
+                logs.push('Failed to toggle rokada: ' + error.message);
+            }
+            document.getElementById('log-container').innerHTML = logs.join('<br>');
+        }
+
+    async function start_bot() {
+    if (botRunning) return;
+    const leverage = document.getElementById('leverage').value;
+    const amount = document.getElementById('amount').value;
+    const errorMessage = document.getElementById('error-message');
+    errorMessage.innerText = '';
+
+    if (!leverage || !amount || leverage < 1 || amount < 0.05) {
+        errorMessage.innerText = 'Leverage must be >= 1 and amount >= 0.05 ETH';
+        logs.push('Error: Invalid leverage or amount');
+        document.getElementById('log-container').innerHTML = logs.join('<br>');
+        return;
+    }
+
+    try {
+        const url = '/start_bot';
+        const body = { leverage: parseInt(leverage), amount: parseFloat(amount), symbol: 'ETH/BTC' };
+        console.log('Sending POST to:', url, body);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const result = await response.json();
+        console.log('Start Bot response:', result);
+        if (result.status === 'success') {
+            botRunning = true;
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+            logs.push('Bot started successfully');
+        } else {
+            errorMessage.innerText = result.message;
+            logs.push(`Error: ${result.message}`);
+        }
+    } catch (error) {
+        console.error('Error starting bot:', error);
+        errorMessage.innerText = 'Failed to start bot: ' + error.message;
+        logs.push('Failed to start bot: ' + error.message);
+    }
+    document.getElementById('log-container').innerHTML = logs.join('<br>');
+}
+
+    async function stop_bot() {
+            if (!botRunning) {
+                logs.push('Bot is not running');
+                document.getElementById('log-container').innerHTML = logs.join('<br>');
+                return;
+            }
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.innerText = '';
+
+            try {
+                const url = '/stop_bot';
+                console.log('Sending POST to:', url);
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const result = await response.json();
+                console.log('Stop Bot response:', result);
+                if (result.status === 'success') {
+                    botRunning = false;
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('stop-btn').disabled = true;
+                    logs.push('Bot stopped successfully');
+                } else {
+                    errorMessage.innerText = result.message;
+                    logs.push(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error stopping bot:', error);
+                errorMessage.innerText = 'Failed to stop bot: ' + error.message;
+                logs.push('Failed to stop bot: ' + error.message);
+            }
+            document.getElementById('log-container').innerHTML = logs.join('<br>');
+        }
+
+    async function startTrade(signalIndex) {
+            const response = await fetch(`/start_trade/${signalIndex}`);
+            const result = await response.json();
+            if (result.error) {
+                alert(`Greška: ${result.error}`);
+            } else {
+                alert('Trejd započet!');
+            }
+        }
+
+    function initChart() {
+            const ctx = document.getElementById('orderbookChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: 'Support', data: [], borderColor: 'green', fill: false, stepped: true },
+                        { label: 'Resistance', data: [], borderColor: 'red', fill: false, stepped: true }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Price (ETH/BTC)' } },
+                        y: { title: { display: true, text: 'Volume' } }
+                    }
+                }
+            });
+        }
+
+    function updateUI(data) {
+            document.getElementById('price').textContent = data.price || 'N/A';
+            document.getElementById('support').textContent = data.support || 0;
+            document.getElementById('resistance').textContent = data.resistance || 0;
+            document.getElementById('trend').textContent = data.trend || 'N/A';
+            document.getElementById('balance').textContent = data.balance || 'N/A';
+            document.getElementById('balanceCurrency').textContent = data.balance_currency || 'USDT';  // Dinamička valuta
+            document.getElementById('rokada').textContent = data.rokada_status || 'off';
+
+            const signalsDiv = document.getElementById('signals');
+            if (data.signals && data.signals.length > 0) {
+                signalsDiv.innerHTML = data.signals.map((signal, index) => `
+                    <p>Signal ${index + 1}: ${signal.type} | Entry: ${signal.entry_price} | SL: ${signal.stop_loss} | TP: ${signal.take_profit} | Volume: ${signal.volume}
+                    <button onclick="startTrade(${index})">Start Trade</button></p>
+                `).join('');
+                const strongestSignal = data.signals[0];
+                document.getElementById('latestSignal').textContent = `${strongestSignal.type} | Entry: ${strongestSignal.entry_price} | Volume: ${strongestSignal.volume}`;
+            } else {
+                signalsDiv.innerHTML = '<p>Nema signala</p>';
+                document.getElementById('latestSignal').textContent = 'N/A';
+            }
+        }
+
+    function updateChart(data) {
+            const supportData = data.support_walls ? data.support_walls.map(wall => ({ x: wall[0], y: wall[1] })) : [];
+            const resistanceData = data.resistance_walls ? data.resistance_walls.map(wall => ({ x: wall[0], y: wall[1] })) : [];
+            chart.data.datasets[0].data = supportData;
+            chart.data.datasets[1].data = resistanceData;
+            chart.update();
+        }
+
+    function updateLatency() {
+    const startRest = Date.now();
+    fetch('/get_data')
+        .then(response => {
+            lastRestPing = Date.now() - startRest;
+            return response.json();
+        })
+        .catch(error => {
+            console.error('REST API error:', error);
+            lastRestPing = 'N/A';
+        })
+        .finally(() => {
+            let wsLatency = 'N/A';
+            if (wsPingStart && lastWsPong) {
+                wsLatency = lastWsPong - wsPingStart;
+                if (wsLatency < 0) wsLatency = 'N/A';
+            }
+            document.getElementById('ws-latency').innerText = wsLatency;
+            document.getElementById('rest-latency').innerText = lastRestPing;
+        });
+}
+
+    window.onload = () => {
+    connectWebSocket();
+    initChart();
+    setInterval(updateLatency, 5000);
+};
+    </script>
+</body>
+</html>

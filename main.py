@@ -146,7 +146,13 @@ async def initialize_exchange():
         'enableRateLimit': True,
     })
     logger.info(f"API ključevi: key={os.getenv('API_KEY')[:4]}..., secret={os.getenv('API_SECRET')[:4]}...")
-
+    exchange.verbose = True
+    pairlist = exchange.load_markets()
+    balance = await exchange.fetch_balance()
+    # balance = exchange.fetch_balance({'currency': currency['id']})
+    # balance = exchange.fetch_balance({'code': 'USDT'}) # valid in PR #12353
+    # balance = exchange.fetch_balance() # identical response in PR #12353
+    # print(balance)
 
 # --- Binance WebSocket ---
 async def balance_check(trade_amount):
@@ -401,7 +407,7 @@ async def start_bot(data: dict):
     if AMOUNT < 0.05:
         logger.error("Amount is too low")
         return {'status': 'error', 'message': 'Amount must be at least 0.05 ETH'}
-    if LEVERAGE not in [1, 3, 5, 10]:
+    if LEVERAGE not in [1, 2, 3, 4, 5, 10]:
         logger.error(f"Invalid leverage: {LEVERAGE}")
         return {'status': 'error', 'message': 'Leverage must be 1, 3, 5, or 10'}
     if bot_running:
